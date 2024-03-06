@@ -1,121 +1,98 @@
 from flask import Flask
 from flask_cors import CORS
-import math as mt
-from flask import jsonify
-
+from flask import jsonify,request
+import pymysql
 
 app=Flask(__name__)
+
 CORS(app)
 
 
+def conectar(vhost,vuser,vpass,vdb):
+    conn = pymysql.connect(host=vhost, user=vuser, passwd=vpass, db=vdb, charset = 'utf8')
+    return conn
+
 @app.route("/")
-@app.route("/<float:numero1>/<float:numero2>")
-@app.route("/<int:numero1>/<int:numero2>")
-@app.route("/<int:numero1>/<int:numero2>")
-@app.route("/<int:numero1>/<float:numero2>")
-@app.route("/<float:numero1>/<int:numero2>")
+def consulta_general():
+    try:
+        conn=conectar('localhost','root','','gestor_contrasena')
+        cur = conn.cursor()
+        cur.execute(""" SELECT * FROM baul """)
+        datos=cur.fetchall()
+        data=[]
+        for row in datos:
+            dato={'id_baul':row[0],'Plataforma':row[1],'usuario':row[2],'clave':row[3]}
+            data.append(dato)
+        cur.close()
+        conn.close()
+        return jsonify({'baul':data,'mensaje':'Baul de contraseñas'})
+    except Exception as ex:
+        print (ex)
+        return jsonify({'mensaje':'Error'})
+    
 
-def suma(numero1=0,numero2=0):
-    resultado=numero1+numero2
+@app.route("/consulta_individual/<codigo>",methods=['GET'])
+def consulta_individual(codigo):
+    try:
+        conn=conectar('localhost','root','','gestor_contrasena')
+        cur = conn.cursor()
+        cur.execute(""" SELECT * FROM baul where id_baul='{0}' """.format(codigo))
+        datos=cur.fetchone()
+        cur.close()
+        conn.close()
+        if datos!=None:
+            dato={'id_baul':datos[0],'Plataforma':datos[1],'usuario':datos[2],'clave':datos[3]}
+            return jsonify({'baul':dato,'mensaje':'Registro encontrado'})  
+        else:
+            return jsonify({'mensaje':'Registro no encontrado'})     
+    except Exception as ex:
+        return jsonify({'mensaje':'Error'})
+    
+@app.route("/registro/",methods=['POST'])
+def registro():
+    try:
+        conn=conectar('localhost','root','','gestor_contrasena')
+        cur = conn.cursor()
+        x=cur.execute(""" insert into baul (plataforma,usuario,clave) values \
+            ('{0}','{1}','{2}')""".format(request.json['plataforma'],\
+                request.json['usuario'],request.json['clave']))
+        conn.commit() ## Para confirmar la inserción de la información
+        cur.close()
+        conn.close()
+        return jsonify({'mensaje':'Registro agregado'}) 
+    except Exception as ex:
+        print(ex)
+        return jsonify({'mensaje':'Error'})
+        
+@app.route("/eliminar/<codigo>",methods=['DELETE'])
+def eliminar(codigo):
+    try:
+        conn=conectar('localhost','root','','gestor_contrasena')
+        cur = conn.cursor()
+        x=cur.execute(""" delete from baul where id_baul={0}""".format(codigo))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'mensaje':'eliminado'}) 
+    except Exception as ex:
+        print(ex)
+        return jsonify({'mensaje':'Error'})
+    
+@app.route("/actualizar/<codigo>",methods=['PUT'])
+def actualizar(codigo):
+    try:
+        conn=conectar('localhost','root','','gestor_contrasena')
+        cur = conn.cursor()
+        x=cur.execute(""" update baul set plataforma='{0}',usuario='{1}',clave='{2}' where \
+            id_baul={3}""".format(request.json['plataforma'],request.json['usuario'],\
+                request.json['clave'],codigo))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'mensaje':'Registro Actualizado'}) 
+    except Exception as ex:
+        print(ex)
+        return jsonify({'mensaje':'Error'})
 
-    data={
-        "Resultado":resultado,
-        "Operacion":"suma",    
-    }
-    return jsonify(data)
-
-
-
-@app.route("/resta/<float:numero1>/<float:numero2>")
-@app.route("/resta/<int:numero1>/<int:numero2>")
-@app.route("/resta/<int:numero1>/<int:numero2>")
-@app.route("/resta/<int:numero1>/<float:numero2>")
-@app.route("/resta/<float:numero1>/<int:numero2>")
-
-def resta(numero1=0,numero2=0):
-    resultado=numero1-numero2
-
-    data={
-        "Resultado":resultado,
-        "Operacion":"resta",    
-    }
-    return jsonify(data)
-
-
-@app.route("/multiplicacion/<float:numero1>/<float:numero2>")
-@app.route("/multiplicacion/<int:numero1>/<int:numero2>")
-@app.route("/multiplicacion/<int:numero1>/<int:numero2>")
-@app.route("/multiplicacion/<int:numero1>/<float:numero2>")
-@app.route("/multiplicacion/<float:numero1>/<int:numero2>")
-
-def multiplicacion(numero1=0,numero2=0):
-    resultado=numero1*numero2
-
-    data={
-        "Resultado":resultado,
-        "Operacion":"multiplicacion",    
-    }
-    return jsonify(data)
-
-
-@app.route("/division/<float:numero1>/<float:numero2>")
-@app.route("/division/<int:numero1>/<int:numero2>")
-@app.route("/division/<int:numero1>/<int:numero2>")
-@app.route("/division/<int:numero1>/<float:numero2>")
-@app.route("/division/<float:numero1>/<int:numero2>")
-
-def division(numero1=0,numero2=0):
-    resultado=numero1/numero2
-
-    data={
-        "Resultado":resultado,
-        "Operacion":"division",    
-    }
-    return jsonify(data)
-
-
-@app.route("/potenciacion/<float:numero1>/<float:numero2>")
-@app.route("/potenciacion/<int:numero1>/<int:numero2>")
-@app.route("/potenciacion/<int:numero1>/<int:numero2>")
-@app.route("/potenciacion/<int:numero1>/<float:numero2>")
-@app.route("/potenciacion/<float:numero1>/<int:numero2>")
-
-def potenciacion(numero1=0,numero2=0):
-    resultado=numero1**numero2
-
-    data={
-        "Resultado":resultado,
-        "Operacion":"potenciacion",    
-    }
-    return jsonify(data)
-
-
-
-@app.route("/seno/<float:numero1>")
-@app.route("/seno/<int:numero1>")
-
-def seno(numero1=0):
-    resultado=mt.sin(numero1)
-
-    data={
-        "Resultado":resultado,
-        "Operacion":"seno",    
-    }
-    return jsonify(data)
-
-
-@app.route("/coseno/<float:numero1>")
-@app.route("/coseno/<int:numero1>")
-
-def coseno(numero1=0):
-    resultado=mt.cos(numero1)
-
-    data={
-        "Resultado":resultado,
-        "Operacion":"coseno",    
-    }
-    return jsonify(data)
-
-
-if __name__=="__main__":
+if __name__=='__main__':
     app.run(debug=True)
